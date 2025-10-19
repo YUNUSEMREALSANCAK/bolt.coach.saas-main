@@ -9,9 +9,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dumbbell, Users, Calendar, MessageSquare, Plus, LogOut, TrendingUp, NotebookPen, Utensils } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Dumbbell, User, Calendar, MessageSquare, LogOut, CheckCircle2, Circle } from 'lucide-react';
 
-// Interface Tanımları
+// --- Interface Tanımları (Değişiklik yok) ---
 interface Profile {
   id: string;
   full_name: string;
@@ -20,89 +21,76 @@ interface Profile {
   user_type: string;
 }
 
-interface Program {
-  id: number;
-  name: string;
-  description: string | null;
+interface TrainingProgram {
+  id: number; name: string; description: string | null;
+}
+interface DietPlan {
+  id: number; name: string; description: string | null;
 }
 
-interface Client {
-  id: number;
-  client_id: string;
-  status: string;
-  client: Profile;
+interface Assignment {
+  training_program: TrainingProgram | null;
+  diet_plan: DietPlan | null;
 }
 
-export default function CoachDashboardPage() {
+export default function ClientDashboardPage() {
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [clients, setClients] = useState<Client[]>([]);
-  const [trainingPrograms, setTrainingPrograms] = useState<Program[]>([]);
-  const [dietPlans, setDietPlans] = useState<Program[]>([]);
+  const [coach, setCoach] = useState<Profile | null>(null);
+  const [assignment, setAssignment] = useState<Assignment | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadData() {
+      setLoading(true);
+
       const { profile: userProfile, error } = await getCurrentProfile();
 
       if (error || !userProfile) {
         router.push('/sign-in');
         return;
       }
+      
+      const typedProfile = userProfile as Profile;
 
-      if (userProfile.user_type !== 'coach') {
-        router.push('/dashboard/client');
+      if (typedProfile.user_type !== 'client') {
+        router.push('/dashboard/coach');
         return;
       }
 
-      setProfile(userProfile as Profile);
-
-      const { data: clientsData } = await supabase
-        .from('client_coach_relations')
-        .select(`
-          id,
-          client_id,
-          status,
-          client:profiles!client_coach_relations_client_id_fkey(
-            id,
-            full_name,
-            email,
-            avatar_url,
-            user_type
-          )
-        `)
-        .eq('coach_id', userProfile.id)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false });
-
-      if (clientsData) {
-        const formattedClients = (clientsData as any[]).map(item => ({
-          id: item.id,
-          client_id: item.client_id,
-          status: item.status,
-          client: Array.isArray(item.client) ? item.client[0] : item.client,
-        }));
-        setClients(formattedClients as Client[]);
-      }
+      setProfile(typedProfile);
       
-      const { data: programsData } = await supabase
-        .from('training_programs')
-        .select('id, name, description')
-        .eq('coach_id', userProfile.id)
-        .order('created_at', { ascending: false });
+      // Promise.all ile verileri paralel olarak çekelim
+      const [coachRelationResult, assignmentResult] = await Promise.all([
+        supabase
+          .from('client_coach_relations')
+          .select(`coach:profiles!client_coach_relations_coach_id_fkey(id, full_name, email, avatar_url, user_type)`)
+          .eq('client_id', typedProfile.id)
+          .eq('status', 'active')
+          .maybeSingle(),
+        supabase
+          .from('client_assignments')
+          .select(`
+            training_program:training_program_id(id, name, description),
+            diet_plan:diet_plan_id(id, name, description)
+          `)
+          .eq('client_id', typedProfile.id)
+          .maybeSingle()
+      ]);
 
-      if (programsData) {
-        setTrainingPrograms(programsData);
+      // Koç bilgisini state'e kaydedelim
+      if (coachRelationResult.data?.coach) {
+        // Supabase bazen tekil ilişkiyi dizi olarak dönebilir, bunu kontrol edelim.
+        const coachData = Array.isArray(coachRelationResult.data.coach) ? coachRelationResult.data.coach[0] : coachRelationResult.data.coach;
+        setCoach(coachData as Profile);
       }
 
-      const { data: plansData } = await supabase
-        .from('diet_plans')
-        .select('id, name, description')
-        .eq('coach_id', userProfile.id)
-        .order('created_at', { ascending: false });
-
-      if (plansData) {
-        setDietPlans(plansData);
+      // Atama bilgisini state'e kaydedelim
+      if (assignmentResult.data) {
+         setAssignment({
+           training_program: assignmentResult.data.training_program as TrainingProgram | null,
+           diet_plan: assignmentResult.data.diet_plan as DietPlan | null
+         });
       }
 
       setLoading(false);
@@ -131,7 +119,7 @@ export default function CoachDashboardPage() {
       <nav className="border-b bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <Link href="/dashboard/coach" className="flex items-center space-x-2">
+            <Link href="/dashboard/client" className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center">
                 <Dumbbell className="h-4 w-4 text-white" />
               </div>
@@ -150,76 +138,88 @@ export default function CoachDashboardPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Coach Dashboard</h1>
-          <p className="text-slate-600">Manage your clients and programs</p>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">My Dashboard</h1>
+          <p className="text-slate-600">Track your progress and follow your programs</p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-4 mb-8">
-          {/* ... Card'lar burada olduğu gibi kalacak ... */}
-        </div>
+        {coach && (
+          <Card className="mb-8">
+            <CardHeader><CardTitle className="text-lg">Your Coach</CardTitle></CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <Avatar><AvatarFallback className="bg-slate-900 text-white">{coach.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}</AvatarFallback></Avatar>
+                  <div>
+                    <div className="font-medium">{coach.full_name}</div>
+                    <div className="text-sm text-slate-600">{coach.email}</div>
+                  </div>
+                </div>
+                <Link href={`/dashboard/client/messages/${coach.id}`}>
+                  <Button variant="outline"><MessageSquare className="h-4 w-4 mr-2" />Message</Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-        <Tabs defaultValue="clients" className="space-y-6">
+        <Tabs defaultValue="training" className="space-y-6">
           <TabsList>
-            <TabsTrigger value="clients">Clients</TabsTrigger>
-            <TabsTrigger value="programs">Programs</TabsTrigger>
-            <TabsTrigger value="messages">Messages</TabsTrigger>
+            <TabsTrigger value="training">Training Program</TabsTrigger>
+            <TabsTrigger value="diet">Diet Plan</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="clients" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-bold text-slate-900">Your Clients</h2>
-              <Link href="/dashboard/coach/clients/add">
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Client
-                </Button>
-              </Link>
-            </div>
-
-            {clients.length === 0 ? (
+          <TabsContent value="training" className="space-y-4">
+            {assignment?.training_program ? (
               <Card>
-                {/* ... No client card içeriği ... */}
+                <CardHeader>
+                  <CardTitle>{assignment.training_program.name}</CardTitle>
+                  {assignment.training_program.description && <CardDescription>{assignment.training_program.description}</CardDescription>}
+                </CardHeader>
+                <CardContent>
+                  <Link href={`/dashboard/client/programs/${assignment.training_program.id}?type=training`}>
+                    <Button className="w-full">
+                      <Calendar className="h-4 w-4 mr-2" />
+                      View Program
+                    </Button>
+                  </Link>
+                </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {clients.map((relation) => (
-                  <Card key={relation.id} className="hover:shadow-lg transition-shadow flex flex-col">
-                    <CardHeader>
-                      <div className="flex items-center space-x-3">
-                        <Avatar>
-                          <AvatarFallback className="bg-slate-900 text-white">
-                            {relation.client.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <CardTitle className="text-lg">{relation.client.full_name}</CardTitle>
-                          <CardDescription>{relation.client.email}</CardDescription>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="mt-auto flex flex-col space-y-2">
-                        {/* --- YENİ BUTON DÜZENİ --- */}
-                        <Link href={`/dashboard/coach/clients/${relation.client_id}`}>
-                          <Button variant="outline" className="w-full" size="sm">
-                            <NotebookPen className="h-4 w-4 mr-2" />
-                            Assign / View Details
-                          </Button>
-                        </Link>
-                        <Link href={`/dashboard/coach/messages/${relation.client_id}`}>
-                          <Button variant="outline" className="w-full" size="sm">
-                            <MessageSquare className="h-4 w-4 mr-2" />
-                            Message Client
-                          </Button>
-                        </Link>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+              <Card>
+                <CardContent className="py-16 text-center">
+                  <Calendar className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-slate-900 mb-2">No training program assigned</h3>
+                  <p className="text-slate-600">Your coach will assign you a program soon</p>
+                </CardContent>
+              </Card>
             )}
           </TabsContent>
 
-          <TabsContent value="programs" className="space-y-4">
-             {/* ... Programs sekmesi içeriği önceki adımdaki gibi kalacak ... */}
+          <TabsContent value="diet" className="space-y-4">
+            {assignment?.diet_plan ? (
+               <Card>
+                <CardHeader>
+                  <CardTitle>{assignment.diet_plan.name}</CardTitle>
+                  {assignment.diet_plan.description && <CardDescription>{assignment.diet_plan.description}</CardDescription>}
+                </CardHeader>
+                <CardContent>
+                  <Link href={`/dashboard/client/programs/${assignment.diet_plan.id}?type=diet`}>
+                    <Button className="w-full">
+                      <User className="h-4 w-4 mr-2" />
+                      View Plan
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="py-16 text-center">
+                  <User className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-slate-900 mb-2">No diet plan assigned</h3>
+                  <p className="text-slate-600">Your coach will assign you a diet plan soon</p>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
       </main>

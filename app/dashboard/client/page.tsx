@@ -21,37 +21,12 @@ interface Profile {
   user_type: string;
 }
 
-interface Exercise {
-  id: number; name: string; sets: number; reps: string; notes: string | null; order_index: number;
-}
-interface TrainingDay {
-  id: number; day_name: string; order_index: number; exercises: Exercise[];
-}
 interface TrainingProgram {
-  id: number; name: string; description: string | null; training_days: TrainingDay[];
-}
-
-interface Meal {
-  id: number;
-  meal_name: string;
-  description: string | null;
-  calories: number | null;
-  order_index: number;
-}
-
-interface DietDay {
-  id: number;
-  day_name: string;
-  order_index: number;
-  meals: Meal[];
+  id: number; name: string; description: string | null;
 }
 
 interface DietPlan {
-  id: number;
-  name: string;
-  description: string | null;
-  target_calories: number | null;
-  diet_days: DietDay[];
+  id: number; name: string; description: string | null;
 }
 
 interface Assignment {
@@ -64,26 +39,26 @@ export default function ClientDashboardPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [coach, setCoach] = useState<Profile | null>(null);
   const [assignment, setAssignment] = useState<Assignment | null>(null);
-  const [completedTrainingDays, setCompletedTrainingDays] = useState<Set<number>>(new Set());
-  const [completedMeals, setCompletedMeals] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
-
-  // app/dashboard/client/page.tsx DOSYASINI GÜNCELLE
 
   useEffect(() => {
     async function loadData() {
+      console.log('ClientDashboard: Veri yükleme işlemi başladı.');
       setLoading(true);
 
       const { profile: userProfile, error } = await getCurrentProfile();
 
       if (error || !userProfile) {
+        console.error('ClientDashboard: Profil alınamadı veya hata oluştu. Giriş sayfasına yönlendiriliyor.', error);
         router.push('/sign-in');
         return;
       }
 
       const typedProfile = userProfile as Profile;
+      console.log('ClientDashboard: Oturum açan kullanıcının profili getirildi.', typedProfile);
 
       if (typedProfile.user_type !== 'client') {
+        console.log('ClientDashboard: Kullanıcı tipi "client" değil. Koç paneline yönlendiriliyor.');
         router.push('/dashboard/coach');
         return;
       }
@@ -105,106 +80,39 @@ export default function ClientDashboardPage() {
         .eq('status', 'active')
         .maybeSingle();
 
+      console.log('ClientDashboard: Koç ilişki sorgusu sonucu:', coachRelation);
       if (coachRelation) {
         const relation = coachRelation as any;
         if (relation.coach) {
           setCoach(Array.isArray(relation.coach) ? relation.coach[0] : relation.coach);
+          console.log('ClientDashboard: Koç bilgisi state\'e kaydedildi.', Array.isArray(relation.coach) ? relation.coach[0] : relation.coach);
         }
       }
 
       const { data: assignmentData } = await supabase
         .from('client_assignments')
         .select(`
-          training_program:training_programs(
-            id,
-            name,
-            description,
-            training_days(
-              id,
-              day_name,
-              order_index,
-              exercises(
-                id,
-                name,
-                sets,
-                reps,
-                notes,
-                order_index
-              )
-            )
-          ),
-          diet_plan:diet_plans(
-            id,
-            name,
-            description,
-            target_calories,
-            diet_days(
-              id,
-              day_name,
-              order_index,
-              meals(
-                id,
-                meal_name,
-                description,
-                calories,
-                order_index
-              )
-            )
-          )
+          training_program:training_programs(id, name, description),
+          diet_plan:diet_plans(id, name, description)
         `)
         .eq('client_id', typedProfile.id)
         .maybeSingle();
 
+      console.log('ClientDashboard: Program atama sorgusu sonucu (assignmentData):', assignmentData);
+      
       if (assignmentData) {
         const data = assignmentData as any;
-        
-        const trainingProgram = Array.isArray(data.training_program) ? data.training_program[0] : data.training_program;
-        const dietPlan = Array.isArray(data.diet_plan) ? data.diet_plan[0] : data.diet_plan;
-
-        if (trainingProgram && trainingProgram.training_days) {
-          trainingProgram.training_days.sort((a: TrainingDay, b: TrainingDay) => a.order_index - b.order_index);
-          for (const day of trainingProgram.training_days) {
-            if (day.exercises) {
-              day.exercises.sort((a: Exercise, b: Exercise) => a.order_index - b.order_index);
-            }
-          }
-        }
-
-        if (dietPlan && dietPlan.diet_days) {
-           dietPlan.diet_days.sort((a: DietDay, b: DietDay) => a.order_index - b.order_index);
-           for (const day of dietPlan.diet_days) {
-             if (day.meals) {
-                day.meals.sort((a: Meal, b: Meal) => a.order_index - b.order_index);
-             }
-           }
-        }
-        
         setAssignment({
-          training_program: trainingProgram || null,
-          diet_plan: dietPlan || null,
+          training_program: Array.isArray(data.training_program) ? data.training_program[0] : data.training_program,
+          diet_plan: Array.isArray(data.diet_plan) ? data.diet_plan[0] : data.diet_plan
         });
-      }
-
-      const today = new Date().toISOString().split('T')[0];
-      const { data: progressData } = await supabase
-        .from('progress_logs')
-        .select('log_type, related_id')
-        .eq('client_id', typedProfile.id)
-        .gte('completed_at', `${today} 00:00:00`);
-
-      if (progressData) {
-        const logs = progressData as Array<{ log_type: string; related_id: number }>;
-        const trainingDayIds = new Set(
-          logs.filter(p => p.log_type === 'training').map(p => p.related_id)
-        );
-        const mealIds = new Set(
-          logs.filter(p => p.log_type === 'diet_meal').map(p => p.related_id)
-        );
-        setCompletedTrainingDays(trainingDayIds);
-        setCompletedMeals(mealIds);
+        console.log('ClientDashboard: Atama bilgisi state\'e kaydedildi.');
+      } else {
+        console.warn('ClientDashboard: Bu danışan için atanmış program bulunamadı.');
       }
 
       setLoading(false);
+      console.log('ClientDashboard: Veri yükleme tamamlandı.');
     }
 
     loadData();
@@ -213,18 +121,6 @@ export default function ClientDashboardPage() {
   async function handleSignOut() {
     await signOut();
     router.push('/');
-  }
-
-  async function toggleTrainingDay(dayId: number) {
-    if (!profile || completedTrainingDays.has(dayId)) return;
-    const { error } = await supabase.from('progress_logs').insert({ client_id: profile.id, log_type: 'training', related_id: dayId });
-    if (!error) setCompletedTrainingDays(new Set(completedTrainingDays).add(dayId));
-  }
-
-  async function toggleMeal(mealId: number) {
-    if (!profile || completedMeals.has(mealId)) return;
-    const { error } = await supabase.from('progress_logs').insert({ client_id: profile.id, log_type: 'diet_meal', related_id: mealId });
-    if (!error) setCompletedMeals(new Set(completedMeals).add(mealId));
   }
 
   if (loading) {
@@ -294,45 +190,17 @@ export default function ClientDashboardPage() {
 
           <TabsContent value="training" className="space-y-4">
             {assignment?.training_program ? (
-              <>
-                <div>
-                  <h2 className="text-2xl font-bold text-slate-900 mb-2">{assignment.training_program.name}</h2>
-                  {assignment.training_program.description && <p className="text-slate-600">{assignment.training_program.description}</p>}
-                </div>
-                <div className="space-y-4">
-                  {assignment.training_program.training_days.map((day) => {
-                    const isCompleted = completedTrainingDays.has(day.id);
-                    return (
-                      <Card key={day.id} className={isCompleted ? 'border-green-200 bg-green-50' : ''}>
-                        <CardHeader>
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                              <CardTitle className="text-lg">{day.day_name}</CardTitle>
-                              {isCompleted && <Badge variant="secondary" className="bg-green-100 text-green-800">Completed Today</Badge>}
-                            </div>
-                            <Button variant={isCompleted ? "secondary" : "default"} size="sm" onClick={() => toggleTrainingDay(day.id)} disabled={isCompleted}>
-                              {isCompleted ? (<><CheckCircle2 className="h-4 w-4 mr-2" />Completed</>) : (<><Circle className="h-4 w-4 mr-2" />Mark Complete</>)}
-                            </Button>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-3">
-                            {day.exercises.map((exercise) => (
-                              <div key={exercise.id} className="flex items-start space-x-3 p-3 bg-white rounded-lg border">
-                                <div className="flex-1">
-                                  <div className="font-medium text-slate-900">{exercise.name}</div>
-                                  <div className="text-sm text-slate-600">{exercise.sets} sets × {exercise.reps} reps</div>
-                                  {exercise.notes && <div className="text-sm text-slate-500 mt-1">{exercise.notes}</div>}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              </>
+              <Card>
+                <CardHeader>
+                  <CardTitle>{assignment.training_program.name}</CardTitle>
+                  {assignment.training_program.description && <CardDescription>{assignment.training_program.description}</CardDescription>}
+                </CardHeader>
+                <CardContent>
+                  <Link href={`/dashboard/client/programs/${assignment.training_program.id}?type=training`}>
+                    <Button className="w-full"><Calendar className="h-4 w-4 mr-2" />View Program</Button>
+                  </Link>
+                </CardContent>
+              </Card>
             ) : (
               <Card>
                 <CardContent className="py-16 text-center">
@@ -344,78 +212,22 @@ export default function ClientDashboardPage() {
             )}
           </TabsContent>
 
-          {/* app/dashboard/client/page.tsx içindeki <TabsContent value="diet"> ... </TabsContent> bloğunu GÜNCELLE */}
-
           <TabsContent value="diet" className="space-y-4">
             {assignment?.diet_plan ? (
-              <>
-                <div>
-                  <h2 className="text-2xl font-bold text-slate-900 mb-2">
-                    {assignment.diet_plan.name}
-                  </h2>
-                  {assignment.diet_plan.target_calories && (
-                    <p className="text-slate-600">Target: {assignment.diet_plan.target_calories} calories/day</p>
-                  )}
-                  {assignment.diet_plan.description && (
-                    <p className="text-slate-600 mt-1">{assignment.diet_plan.description}</p>
-                  )}
-                </div>
-
-                <div className="space-y-6">
-                  {assignment.diet_plan.diet_days
-                    .map((day) => (
-                      <div key={day.id}>
-                        <h3 className="text-xl font-semibold text-slate-800 mb-3">{day.day_name}</h3>
-                        <div className="grid gap-4 md:grid-cols-2">
-                          {day.meals.map((meal) => {
-                              const isCompleted = completedMeals.has(meal.id);
-                              return (
-                                <Card key={meal.id} className={isCompleted ? 'border-green-200 bg-green-50' : ''}>
-                                  <CardHeader>
-                                    <div className="flex items-center justify-between">
-                                      <CardTitle className="text-lg">{meal.meal_name}</CardTitle>
-                                      {meal.calories && (
-                                        <Badge variant="secondary">{meal.calories} cal</Badge>
-                                      )}
-                                    </div>
-                                    {isCompleted && (
-                                      <Badge variant="secondary" className="bg-green-100 text-green-800 w-fit">
-                                        Completed Today
-                                      </Badge>
-                                    )}
-                                  </CardHeader>
-                                  <CardContent className="space-y-3">
-                                    {meal.description && (
-                                      <p className="text-slate-600 text-sm">{meal.description}</p>
-                                    )}
-                                    <Button
-                                      variant={isCompleted ? "secondary" : "default"}
-                                      size="sm"
-                                      className="w-full"
-                                      onClick={() => toggleMeal(meal.id)}
-                                      disabled={isCompleted}
-                                    >
-                                      {isCompleted ? (
-                                        <>
-                                          <CheckCircle2 className="h-4 w-4 mr-2" />
-                                          Completed
-                                        </>
-                                      ) : (
-                                        <>
-                                          <Circle className="h-4 w-4 mr-2" />
-                                          Mark Complete
-                                        </>
-                                      )}
-                                    </Button>
-                                  </CardContent>
-                                </Card>
-                              );
-                            })}
-                        </div>
-                      </div>
-                  ))}
-                </div>
-              </>
+               <Card>
+                <CardHeader>
+                  <CardTitle>{assignment.diet_plan.name}</CardTitle>
+                  {assignment.diet_plan.description && <CardDescription>{assignment.diet_plan.description}</CardDescription>}
+                </CardHeader>
+                <CardContent>
+                  <Link href={`/dashboard/client/programs/${assignment.diet_plan.id}?type=diet`}>
+                    <Button className="w-full">
+                      <User className="h-4 w-4 mr-2" />
+                      View Plan
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
             ) : (
               <Card>
                 <CardContent className="py-16 text-center">

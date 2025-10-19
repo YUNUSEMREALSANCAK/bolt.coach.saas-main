@@ -35,7 +35,7 @@ export default function SignUpPage() {
     }
 
     if (data.user) {
-      router.push('/dashboard');
+      router.push('/dashboard'); //TODO : redirect based on user type 
       router.refresh();
     }
   }

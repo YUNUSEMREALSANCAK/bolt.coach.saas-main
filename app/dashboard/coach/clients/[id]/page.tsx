@@ -116,11 +116,15 @@ export default function ClientDetailsPage() {
   }, [router, clientId]);
 
   async function handleAssignPrograms() {
+    console.log('handleAssignPrograms: İşlem başlatıldı.');
     setSaving(true);
+    console.log('handleAssignPrograms: Program atanan danışan:', client);
     setError('');
     setSuccess('');
 
     const { profile: coachProfile } = await getCurrentProfile();
+    console.log('handleAssignPrograms: Koç profili getirildi.', coachProfile);
+
     if (!coachProfile) {
       setError('Authentication error. Please sign in again.');
       setSaving(false);
@@ -130,8 +134,10 @@ export default function ClientDetailsPage() {
     // Convert selected values to number or null
     const trainingProgramId = selectedTrainingProgram && selectedTrainingProgram !== 'none' ? parseInt(selectedTrainingProgram) : null;
     const dietPlanId = selectedDietPlan && selectedDietPlan !== 'none' ? parseInt(selectedDietPlan) : null;
+    console.log('handleAssignPrograms: Atanacak program IDleri:', { trainingProgramId, dietPlanId });
 
     if (assignment) {
+      console.log(`handleAssignPrograms: Mevcut atama güncelleniyor. Atama ID: ${assignment.id}`);
       // Update existing assignment
       const { error: updateError } = await supabase
         .from('client_assignments')
@@ -142,11 +148,13 @@ export default function ClientDetailsPage() {
         .eq('id', assignment.id);
 
       if (updateError) {
+        console.error('handleAssignPrograms: Atama güncelleme hatası:', updateError);
         setError(`Failed to update assignments: ${updateError.message}`);
         setSaving(false);
         return;
       }
     } else {
+      console.log(`handleAssignPrograms: Yeni atama oluşturuluyor. Danışan ID: ${clientId}`);
       // Create new assignment
       const { error: insertError } = await supabase
         .from('client_assignments')
@@ -158,6 +166,7 @@ export default function ClientDetailsPage() {
         });
 
       if (insertError) {
+        console.error('handleAssignPrograms: Yeni atama oluşturma hatası:', insertError);
         setError(`Failed to create assignment: ${insertError.message}`);
         setSaving(false);
         return;
@@ -165,6 +174,7 @@ export default function ClientDetailsPage() {
     }
 
     setSuccess('Programs assigned successfully!');
+    console.log('handleAssignPrograms: İşlem başarıyla tamamlandı.');
     setSaving(false);
 
     setTimeout(() => {
