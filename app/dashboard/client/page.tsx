@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Dumbbell, User, Calendar, MessageSquare, LogOut, CheckCircle2, Circle } from 'lucide-react';
 
+// --- Güncellenmiş Interface Tanımları ---
 interface Profile {
   id: string;
   full_name: string;
@@ -20,31 +21,14 @@ interface Profile {
   user_type: string;
 }
 
-interface CoachRelation {
-  coach: Profile;
-}
-
-interface TrainingDay {
-  id: number;
-  day_name: string;
-  order_index: number;
-  exercises: Exercise[];
-}
-
 interface Exercise {
-  id: number;
-  name: string;
-  sets: number;
-  reps: string;
-  notes: string | null;
-  order_index: number;
+  id: number; name: string; sets: number; reps: string; notes: string | null; order_index: number;
 }
-
+interface TrainingDay {
+  id: number; day_name: string; order_index: number; exercises: Exercise[];
+}
 interface TrainingProgram {
-  id: number;
-  name: string;
-  description: string | null;
-  training_days: TrainingDay[];
+  id: number; name: string; description: string | null; training_days: TrainingDay[];
 }
 
 interface Meal {
@@ -55,12 +39,19 @@ interface Meal {
   order_index: number;
 }
 
+interface DietDay {
+  id: number;
+  day_name: string;
+  order_index: number;
+  meals: Meal[];
+}
+
 interface DietPlan {
   id: number;
   name: string;
   description: string | null;
   target_calories: number | null;
-  meals: Meal[];
+  diet_days: DietDay[];
 }
 
 interface Assignment {
@@ -77,8 +68,12 @@ export default function ClientDashboardPage() {
   const [completedMeals, setCompletedMeals] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
 
+  // app/dashboard/client/page.tsx DOSYASINI GÜNCELLE
+
   useEffect(() => {
     async function loadData() {
+      setLoading(true);
+
       const { profile: userProfile, error } = await getCurrentProfile();
 
       if (error || !userProfile) {
@@ -113,7 +108,7 @@ export default function ClientDashboardPage() {
       if (coachRelation) {
         const relation = coachRelation as any;
         if (relation.coach) {
-          setCoach(relation.coach as Profile);
+          setCoach(Array.isArray(relation.coach) ? relation.coach[0] : relation.coach);
         }
       }
 
@@ -143,12 +138,17 @@ export default function ClientDashboardPage() {
             name,
             description,
             target_calories,
-            meals(
+            diet_days(
               id,
-              meal_name,
-              description,
-              calories,
-              order_index
+              day_name,
+              order_index,
+              meals(
+                id,
+                meal_name,
+                description,
+                calories,
+                order_index
+              )
             )
           )
         `)
@@ -157,10 +157,32 @@ export default function ClientDashboardPage() {
 
       if (assignmentData) {
         const data = assignmentData as any;
+        
+        const trainingProgram = Array.isArray(data.training_program) ? data.training_program[0] : data.training_program;
+        const dietPlan = Array.isArray(data.diet_plan) ? data.diet_plan[0] : data.diet_plan;
+
+        if (trainingProgram && trainingProgram.training_days) {
+          trainingProgram.training_days.sort((a: TrainingDay, b: TrainingDay) => a.order_index - b.order_index);
+          for (const day of trainingProgram.training_days) {
+            if (day.exercises) {
+              day.exercises.sort((a: Exercise, b: Exercise) => a.order_index - b.order_index);
+            }
+          }
+        }
+
+        if (dietPlan && dietPlan.diet_days) {
+           dietPlan.diet_days.sort((a: DietDay, b: DietDay) => a.order_index - b.order_index);
+           for (const day of dietPlan.diet_days) {
+             if (day.meals) {
+                day.meals.sort((a: Meal, b: Meal) => a.order_index - b.order_index);
+             }
+           }
+        }
+        
         setAssignment({
-          training_program: Array.isArray(data.training_program) ? data.training_program[0] : data.training_program,
-          diet_plan: Array.isArray(data.diet_plan) ? data.diet_plan[0] : data.diet_plan,
-        } as Assignment);
+          training_program: trainingProgram || null,
+          diet_plan: dietPlan || null,
+        });
       }
 
       const today = new Date().toISOString().split('T')[0];
@@ -168,7 +190,7 @@ export default function ClientDashboardPage() {
         .from('progress_logs')
         .select('log_type, related_id')
         .eq('client_id', typedProfile.id)
-        .gte('completed_at', today);
+        .gte('completed_at', `${today} 00:00:00`);
 
       if (progressData) {
         const logs = progressData as Array<{ log_type: string; related_id: number }>;
@@ -194,47 +216,15 @@ export default function ClientDashboardPage() {
   }
 
   async function toggleTrainingDay(dayId: number) {
-    if (!profile) return;
-
-    if (completedTrainingDays.has(dayId)) {
-      return;
-    }
-
-    const { error } = await supabase
-      .from('progress_logs')
-      .insert({
-        client_id: profile.id,
-        log_type: 'training' as 'training' | 'diet_meal',
-        related_id: dayId,
-      });
-
-    if (!error) {
-      const newSet = new Set(completedTrainingDays);
-      newSet.add(dayId);
-      setCompletedTrainingDays(newSet);
-    }
+    if (!profile || completedTrainingDays.has(dayId)) return;
+    const { error } = await supabase.from('progress_logs').insert({ client_id: profile.id, log_type: 'training', related_id: dayId });
+    if (!error) setCompletedTrainingDays(new Set(completedTrainingDays).add(dayId));
   }
 
   async function toggleMeal(mealId: number) {
-    if (!profile) return;
-
-    if (completedMeals.has(mealId)) {
-      return;
-    }
-
-    const { error } = await supabase
-      .from('progress_logs')
-      .insert({
-        client_id: profile.id,
-        log_type: 'diet_meal' as 'training' | 'diet_meal',
-        related_id: mealId,
-      });
-
-    if (!error) {
-      const newSet = new Set(completedMeals);
-      newSet.add(mealId);
-      setCompletedMeals(newSet);
-    }
+    if (!profile || completedMeals.has(mealId)) return;
+    const { error } = await supabase.from('progress_logs').insert({ client_id: profile.id, log_type: 'diet_meal', related_id: mealId });
+    if (!error) setCompletedMeals(new Set(completedMeals).add(mealId));
   }
 
   if (loading) {
@@ -249,6 +239,7 @@ export default function ClientDashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      {/* ... Nav bar olduğu gibi kalacak ... */}
       <nav className="border-b bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -277,27 +268,18 @@ export default function ClientDashboardPage() {
 
         {coach && (
           <Card className="mb-8">
-            <CardHeader>
-              <CardTitle className="text-lg">Your Coach</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-lg">Your Coach</CardTitle></CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <Avatar>
-                    <AvatarFallback className="bg-slate-900 text-white">
-                      {coach.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
+                  <Avatar><AvatarFallback className="bg-slate-900 text-white">{coach.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}</AvatarFallback></Avatar>
                   <div>
                     <div className="font-medium">{coach.full_name}</div>
                     <div className="text-sm text-slate-600">{coach.email}</div>
                   </div>
                 </div>
                 <Link href={`/dashboard/client/messages/${coach.id}`}>
-                  <Button variant="outline">
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    Message
-                  </Button>
+                  <Button variant="outline"><MessageSquare className="h-4 w-4 mr-2" />Message</Button>
                 </Link>
               </div>
             </CardContent>
@@ -314,73 +296,41 @@ export default function ClientDashboardPage() {
             {assignment?.training_program ? (
               <>
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-900 mb-2">
-                    {assignment.training_program.name}
-                  </h2>
-                  {assignment.training_program.description && (
-                    <p className="text-slate-600">{assignment.training_program.description}</p>
-                  )}
+                  <h2 className="text-2xl font-bold text-slate-900 mb-2">{assignment.training_program.name}</h2>
+                  {assignment.training_program.description && <p className="text-slate-600">{assignment.training_program.description}</p>}
                 </div>
-
                 <div className="space-y-4">
-                  {assignment.training_program.training_days
-                    .sort((a, b) => a.order_index - b.order_index)
-                    .map((day) => {
-                      const isCompleted = completedTrainingDays.has(day.id);
-                      return (
-                        <Card key={day.id} className={isCompleted ? 'border-green-200 bg-green-50' : ''}>
-                          <CardHeader>
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-3">
-                                <CardTitle className="text-lg">{day.day_name}</CardTitle>
-                                {isCompleted && (
-                                  <Badge variant="secondary" className="bg-green-100 text-green-800">
-                                    Completed Today
-                                  </Badge>
-                                )}
+                  {assignment.training_program.training_days.map((day) => {
+                    const isCompleted = completedTrainingDays.has(day.id);
+                    return (
+                      <Card key={day.id} className={isCompleted ? 'border-green-200 bg-green-50' : ''}>
+                        <CardHeader>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              <CardTitle className="text-lg">{day.day_name}</CardTitle>
+                              {isCompleted && <Badge variant="secondary" className="bg-green-100 text-green-800">Completed Today</Badge>}
+                            </div>
+                            <Button variant={isCompleted ? "secondary" : "default"} size="sm" onClick={() => toggleTrainingDay(day.id)} disabled={isCompleted}>
+                              {isCompleted ? (<><CheckCircle2 className="h-4 w-4 mr-2" />Completed</>) : (<><Circle className="h-4 w-4 mr-2" />Mark Complete</>)}
+                            </Button>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-3">
+                            {day.exercises.map((exercise) => (
+                              <div key={exercise.id} className="flex items-start space-x-3 p-3 bg-white rounded-lg border">
+                                <div className="flex-1">
+                                  <div className="font-medium text-slate-900">{exercise.name}</div>
+                                  <div className="text-sm text-slate-600">{exercise.sets} sets × {exercise.reps} reps</div>
+                                  {exercise.notes && <div className="text-sm text-slate-500 mt-1">{exercise.notes}</div>}
+                                </div>
                               </div>
-                              <Button
-                                variant={isCompleted ? "secondary" : "default"}
-                                size="sm"
-                                onClick={() => toggleTrainingDay(day.id)}
-                                disabled={isCompleted}
-                              >
-                                {isCompleted ? (
-                                  <>
-                                    <CheckCircle2 className="h-4 w-4 mr-2" />
-                                    Completed
-                                  </>
-                                ) : (
-                                  <>
-                                    <Circle className="h-4 w-4 mr-2" />
-                                    Mark Complete
-                                  </>
-                                )}
-                              </Button>
-                            </div>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="space-y-3">
-                              {day.exercises
-                                .sort((a, b) => a.order_index - b.order_index)
-                                .map((exercise) => (
-                                  <div key={exercise.id} className="flex items-start space-x-3 p-3 bg-white rounded-lg border">
-                                    <div className="flex-1">
-                                      <div className="font-medium text-slate-900">{exercise.name}</div>
-                                      <div className="text-sm text-slate-600">
-                                        {exercise.sets} sets × {exercise.reps} reps
-                                      </div>
-                                      {exercise.notes && (
-                                        <div className="text-sm text-slate-500 mt-1">{exercise.notes}</div>
-                                      )}
-                                    </div>
-                                  </div>
-                                ))}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
               </>
             ) : (
@@ -393,6 +343,8 @@ export default function ClientDashboardPage() {
               </Card>
             )}
           </TabsContent>
+
+          {/* app/dashboard/client/page.tsx içindeki <TabsContent value="diet"> ... </TabsContent> bloğunu GÜNCELLE */}
 
           <TabsContent value="diet" className="space-y-4">
             {assignment?.diet_plan ? (
@@ -409,53 +361,59 @@ export default function ClientDashboardPage() {
                   )}
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
-                  {assignment.diet_plan.meals
-                    .sort((a, b) => a.order_index - b.order_index)
-                    .map((meal) => {
-                      const isCompleted = completedMeals.has(meal.id);
-                      return (
-                        <Card key={meal.id} className={isCompleted ? 'border-green-200 bg-green-50' : ''}>
-                          <CardHeader>
-                            <div className="flex items-center justify-between">
-                              <CardTitle className="text-lg">{meal.meal_name}</CardTitle>
-                              {meal.calories && (
-                                <Badge variant="secondary">{meal.calories} cal</Badge>
-                              )}
-                            </div>
-                            {isCompleted && (
-                              <Badge variant="secondary" className="bg-green-100 text-green-800 w-fit">
-                                Completed Today
-                              </Badge>
-                            )}
-                          </CardHeader>
-                          <CardContent className="space-y-3">
-                            {meal.description && (
-                              <p className="text-slate-600 text-sm">{meal.description}</p>
-                            )}
-                            <Button
-                              variant={isCompleted ? "secondary" : "default"}
-                              size="sm"
-                              className="w-full"
-                              onClick={() => toggleMeal(meal.id)}
-                              disabled={isCompleted}
-                            >
-                              {isCompleted ? (
-                                <>
-                                  <CheckCircle2 className="h-4 w-4 mr-2" />
-                                  Completed
-                                </>
-                              ) : (
-                                <>
-                                  <Circle className="h-4 w-4 mr-2" />
-                                  Mark Complete
-                                </>
-                              )}
-                            </Button>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
+                <div className="space-y-6">
+                  {assignment.diet_plan.diet_days
+                    .map((day) => (
+                      <div key={day.id}>
+                        <h3 className="text-xl font-semibold text-slate-800 mb-3">{day.day_name}</h3>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          {day.meals.map((meal) => {
+                              const isCompleted = completedMeals.has(meal.id);
+                              return (
+                                <Card key={meal.id} className={isCompleted ? 'border-green-200 bg-green-50' : ''}>
+                                  <CardHeader>
+                                    <div className="flex items-center justify-between">
+                                      <CardTitle className="text-lg">{meal.meal_name}</CardTitle>
+                                      {meal.calories && (
+                                        <Badge variant="secondary">{meal.calories} cal</Badge>
+                                      )}
+                                    </div>
+                                    {isCompleted && (
+                                      <Badge variant="secondary" className="bg-green-100 text-green-800 w-fit">
+                                        Completed Today
+                                      </Badge>
+                                    )}
+                                  </CardHeader>
+                                  <CardContent className="space-y-3">
+                                    {meal.description && (
+                                      <p className="text-slate-600 text-sm">{meal.description}</p>
+                                    )}
+                                    <Button
+                                      variant={isCompleted ? "secondary" : "default"}
+                                      size="sm"
+                                      className="w-full"
+                                      onClick={() => toggleMeal(meal.id)}
+                                      disabled={isCompleted}
+                                    >
+                                      {isCompleted ? (
+                                        <>
+                                          <CheckCircle2 className="h-4 w-4 mr-2" />
+                                          Completed
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Circle className="h-4 w-4 mr-2" />
+                                          Mark Complete
+                                        </>
+                                      )}
+                                    </Button>
+                                  </CardContent>
+                                </Card>
+                              );
+                            })}
+                        </div>
+                      </div>
+                  ))}
                 </div>
               </>
             ) : (

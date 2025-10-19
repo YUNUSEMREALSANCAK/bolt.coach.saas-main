@@ -84,7 +84,7 @@ export default function CoachDashboardPage() {
         }));
         setClients(formattedClients as Client[]);
       }
-      
+
       const { data: programsData } = await supabase
         .from('training_programs')
         .select('id, name, description')
@@ -271,54 +271,58 @@ export default function CoachDashboardPage() {
             </div>
 
             {trainingPrograms.length === 0 && dietPlans.length === 0 ? (
-                <Card>
-                  <CardContent className="py-16 text-center">
-                    <Calendar className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-slate-900 mb-2">No programs yet</h3>
-                    <p className="text-slate-600 mb-6">Create your first training or diet program</p>
-                    <Link href="/dashboard/coach/programs/create">
-                      <Button>Create program</Button>
-                    </Link>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-lg font-semibold text-slate-800 mb-3">Training Programs</h3>
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                      {trainingPrograms.map((program) => (
-                        <Card key={program.id}>
-                          <CardHeader>
-                            <CardTitle>{program.name}</CardTitle>
-                            {program.description && <CardDescription>{program.description}</CardDescription>}
-                          </CardHeader>
-                          <CardContent>
+              <Card>
+                <CardContent className="py-16 text-center">
+                  <Calendar className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-slate-900 mb-2">No programs yet</h3>
+                  <p className="text-slate-600 mb-6">Create your first training or diet program</p>
+                  <Link href="/dashboard/coach/programs/create">
+                    <Button>Create program</Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-800 mb-3">Training Programs</h3>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {trainingPrograms.map((program) => (
+                      <Card key={program.id}>
+                        <CardHeader>
+                          <CardTitle>{program.name}</CardTitle>
+                          {program.description && <CardDescription>{program.description}</CardDescription>}
+                        </CardHeader>
+                        <CardContent>
+                          <Link href={`/dashboard/coach/programs/${program.id}?type=training`}>
                             <Button variant="outline" size="sm" className="w-full">View Program</Button>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                    {trainingPrograms.length === 0 && <p className="text-sm text-slate-500">No training programs created yet.</p>}
+                          </Link>
+                        </CardContent>
+                      </Card>
+                    ))}
                   </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-slate-800 mb-3">Diet Plans</h3>
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                      {dietPlans.map((plan) => (
-                        <Card key={plan.id}>
-                          <CardHeader>
-                            <CardTitle>{plan.name}</CardTitle>
-                            {plan.description && <CardDescription>{plan.description}</CardDescription>}
-                          </CardHeader>
-                          <CardContent>
-                            <Button variant="outline" size="sm" className="w-full">View Plan</Button>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                    {dietPlans.length === 0 && <p className="text-sm text-slate-500">No diet plans created yet.</p>}
-                  </div>
+                  {trainingPrograms.length === 0 && <p className="text-sm text-slate-500">No training programs created yet.</p>}
                 </div>
-              )}
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-800 mb-3">Diet Plans</h3>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {dietPlans.map((plan) => (
+                      <Card key={plan.id}>
+                        <CardHeader>
+                          <CardTitle>{plan.name}</CardTitle>
+                          {plan.description && <CardDescription>{plan.description}</CardDescription>}
+                        </CardHeader>
+                        <CardContent>
+                          <Link href={`/dashboard/coach/programs/${plan.id}?type=diet`}>
+                            <Button variant="outline" size="sm" className="w-full">View Plan</Button>
+                          </Link>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                  {dietPlans.length === 0 && <p className="text-sm text-slate-500">No diet plans created yet.</p>}
+                </div>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="messages" className="space-y-4">

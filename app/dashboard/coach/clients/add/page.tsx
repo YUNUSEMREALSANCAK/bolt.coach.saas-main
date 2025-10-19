@@ -33,18 +33,21 @@ export default function AddClientPage() {
       return;
     }
 
-    const { data: clientProfile, error: clientError } = await supabase
-      .from('profiles')
-      .select('id, email, user_type')
-      .eq('email', email.toLowerCase())
-      .maybeSingle();
+    // DÜZELTME: `.from('profiles').select()` yerine `.rpc()` kullan
+    const { data: clientProfileData, error: clientError } = await supabase
+      .rpc('search_client_by_email', {
+        client_email: email.toLowerCase()
+      });
 
-    if (clientError || !clientProfile) {
-      setError('Client not found with this email');
+    if (clientError || !clientProfileData || clientProfileData.length === 0) {
+      setError('Client not found with this email, or they are not registered as a client.');
       setLoading(false);
       return;
     }
+    
+    const clientProfile = clientProfileData[0];
 
+    // Bu kontrol RPC içinde yapılıyor ama burada da olması iyidir.
     if (clientProfile.user_type !== 'client') {
       setError('This user is not registered as a client');
       setLoading(false);
@@ -60,19 +63,19 @@ export default function AddClientPage() {
       });
 
     if (relationError) {
-      if (relationError.code === '23505') {
-        setError('This client is already added to your list');
+      if (relationError.code === '23505') { // Unique constraint violation
+        setError('This client is already on your list.');
       } else {
-        setError('Failed to add client');
+        setError(`Failed to add client: ${relationError.message}`);
       }
       setLoading(false);
       return;
     }
 
-    setSuccess('Client added successfully!');
+    setSuccess(`Client "${clientProfile.full_name}" added successfully! Redirecting...`);
     setTimeout(() => {
       router.push('/dashboard/coach');
-    }, 1500);
+    }, 2000);
   }
 
   return (
@@ -117,7 +120,7 @@ export default function AddClientPage() {
                 />
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? 'Adding client...' : 'Add client'}
+                {loading ? 'Searching...' : 'Add Client'}
               </Button>
             </form>
           </CardContent>

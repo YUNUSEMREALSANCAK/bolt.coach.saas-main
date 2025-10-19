@@ -64,6 +64,7 @@ export default function ClientDetailsPage() {
         return;
       }
 
+      // Fetch client details
       const { data: clientData, error: clientError } = await supabase
         .from('profiles')
         .select('*')
@@ -74,29 +75,25 @@ export default function ClientDetailsPage() {
         router.push('/dashboard/coach');
         return;
       }
-
       setClient(clientData as Profile);
 
+      // Fetch coach's programs
       const { data: programsData } = await supabase
         .from('training_programs')
         .select('id, name, description')
         .eq('coach_id', coachProfile.id)
         .order('created_at', { ascending: false });
+      if (programsData) setTrainingPrograms(programsData);
 
-      if (programsData) {
-        setTrainingPrograms(programsData);
-      }
-
+      // Fetch coach's diet plans
       const { data: plansData } = await supabase
         .from('diet_plans')
         .select('id, name, description')
         .eq('coach_id', coachProfile.id)
         .order('created_at', { ascending: false });
-
-      if (plansData) {
-        setDietPlans(plansData);
-      }
-
+      if (plansData) setDietPlans(plansData);
+      
+      // Fetch existing assignment for the client
       const { data: assignmentData } = await supabase
         .from('client_assignments')
         .select('*')
@@ -105,6 +102,7 @@ export default function ClientDetailsPage() {
 
       if (assignmentData) {
         setAssignment(assignmentData);
+        // Set the initial selected values for the dropdowns
         setSelectedTrainingProgram(assignmentData.training_program_id?.toString() || '');
         setSelectedDietPlan(assignmentData.diet_plan_id?.toString() || '');
       }
@@ -112,7 +110,9 @@ export default function ClientDetailsPage() {
       setLoading(false);
     }
 
-    loadData();
+    if (clientId) {
+        loadData();
+    }
   }, [router, clientId]);
 
   async function handleAssignPrograms() {
@@ -121,39 +121,44 @@ export default function ClientDetailsPage() {
     setSuccess('');
 
     const { profile: coachProfile } = await getCurrentProfile();
-
     if (!coachProfile) {
-      setError('Authentication error');
+      setError('Authentication error. Please sign in again.');
       setSaving(false);
       return;
     }
 
+    // Convert selected values to number or null
+    const trainingProgramId = selectedTrainingProgram && selectedTrainingProgram !== 'none' ? parseInt(selectedTrainingProgram) : null;
+    const dietPlanId = selectedDietPlan && selectedDietPlan !== 'none' ? parseInt(selectedDietPlan) : null;
+
     if (assignment) {
+      // Update existing assignment
       const { error: updateError } = await supabase
         .from('client_assignments')
         .update({
-          training_program_id: selectedTrainingProgram ? parseInt(selectedTrainingProgram) : null,
-          diet_plan_id: selectedDietPlan ? parseInt(selectedDietPlan) : null,
+          training_program_id: trainingProgramId,
+          diet_plan_id: dietPlanId,
         })
         .eq('id', assignment.id);
 
       if (updateError) {
-        setError('Failed to update assignments');
+        setError(`Failed to update assignments: ${updateError.message}`);
         setSaving(false);
         return;
       }
     } else {
+      // Create new assignment
       const { error: insertError } = await supabase
         .from('client_assignments')
         .insert({
           client_id: clientId,
-          training_program_id: selectedTrainingProgram ? parseInt(selectedTrainingProgram) : null,
-          diet_plan_id: selectedDietPlan ? parseInt(selectedDietPlan) : null,
+          training_program_id: trainingProgramId,
+          diet_plan_id: dietPlanId,
           assigned_by: coachProfile.id,
         });
 
       if (insertError) {
-        setError('Failed to create assignments');
+        setError(`Failed to create assignment: ${insertError.message}`);
         setSaving(false);
         return;
       }
@@ -163,8 +168,8 @@ export default function ClientDetailsPage() {
     setSaving(false);
 
     setTimeout(() => {
-      router.push('/dashboard/coach');
-    }, 1500);
+      setSuccess('');
+    }, 3000);
   }
 
   if (loading) {
@@ -219,16 +224,8 @@ export default function ClientDetailsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            {success && (
-              <Alert className="bg-green-50 text-green-900 border-green-200">
-                <AlertDescription>{success}</AlertDescription>
-              </Alert>
-            )}
+            {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+            {success && <Alert className="bg-green-50 text-green-900 border-green-200"><AlertDescription>{success}</AlertDescription></Alert>}
 
             <div className="space-y-2">
               <Label>Training Program</Label>
@@ -248,7 +245,8 @@ export default function ClientDetailsPage() {
                     <SelectValue placeholder="Select a training program" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No program</SelectItem>
+                    {/* DÜZELTME: value="" yerine "none" kullan */}
+                    <SelectItem value="none">No program</SelectItem>
                     {trainingPrograms.map((program) => (
                       <SelectItem key={program.id} value={program.id.toString()}>
                         {program.name}
@@ -277,7 +275,8 @@ export default function ClientDetailsPage() {
                     <SelectValue placeholder="Select a diet plan" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No plan</SelectItem>
+                    {/* DÜZELTME: value="" yerine "none" kullan */}
+                    <SelectItem value="none">No plan</SelectItem>
                     {dietPlans.map((plan) => (
                       <SelectItem key={plan.id} value={plan.id.toString()}>
                         {plan.name}
@@ -291,7 +290,7 @@ export default function ClientDetailsPage() {
             <Button
               onClick={handleAssignPrograms}
               className="w-full"
-              disabled={saving || (trainingPrograms.length === 0 && dietPlans.length === 0)}
+              disabled={saving}
             >
               {saving ? 'Saving...' : 'Assign Programs'}
             </Button>
