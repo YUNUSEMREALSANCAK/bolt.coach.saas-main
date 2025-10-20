@@ -55,76 +55,60 @@ export default function ClientDashboardPage() {
 
   useEffect(() => {
     async function loadData() {
-      console.log('ClientDashboard: Veri yükleme işlemi başladı.');
       setLoading(true);
+      try {
+        const { profile: userProfile, error } = await getCurrentProfile();
 
-      const { profile: userProfile, error } = await getCurrentProfile();
-
-      if (error || !userProfile) {
-        console.error('ClientDashboard: Profil alınamadı veya hata oluştu. Giriş sayfasına yönlendiriliyor.', error);
-        router.push('/sign-in');
-        return;
-      }
-
-      const typedProfile = userProfile as Profile;
-      console.log('ClientDashboard: Oturum açan kullanıcının profili getirildi.', typedProfile);
-
-      if (typedProfile.user_type !== 'client') {
-        console.log('ClientDashboard: Kullanıcı tipi "client" değil. Koç paneline yönlendiriliyor.');
-        router.push('/dashboard/coach');
-        return;
-      }
-
-      setProfile(typedProfile);
-
-      const { data: coachRelation } = await supabase
-        .from('client_coach_relations')
-        .select(`
-          coach:profiles!client_coach_relations_coach_id_fkey(
-            id,
-            full_name,
-            email,
-            avatar_url,
-            user_type
-          )
-        `)
-        .eq('client_id', typedProfile.id)
-        .eq('status', 'active')
-        .maybeSingle();
-
-      console.log('ClientDashboard: Koç ilişki sorgusu sonucu:', coachRelation);
-      if (coachRelation) {
-        const relation = coachRelation as any;
-        if (relation.coach) {
-          setCoach(Array.isArray(relation.coach) ? relation.coach[0] : relation.coach);
-          console.log('ClientDashboard: Koç bilgisi state\'e kaydedildi.', Array.isArray(relation.coach) ? relation.coach[0] : relation.coach);
+        if (error || !userProfile) {
+          router.push('/sign-in');
+          return;
         }
+
+        if (userProfile.user_type !== 'client') {
+          router.push('/dashboard/coach');
+          return;
+        }
+
+        setProfile(userProfile as Profile);
+
+        // Koç ve atama bilgilerini paralel olarak çek
+        const [coachRelationResult, assignmentResult] = await Promise.all([
+          supabase
+            .from('client_coach_relations')
+            .select('coach:coach_id(id, full_name, email, avatar_url)')
+            .eq('client_id', userProfile.id)
+            .eq('status', 'active')
+            .maybeSingle(),
+          supabase
+            .from('client_assignments')
+            .select('training_program:training_program_id(*), diet_plan:diet_plan_id(*)')
+            .eq('client_id', userProfile.id)
+            .maybeSingle()
+        ]);
+
+        if (coachRelationResult.error) throw coachRelationResult.error;
+        if (assignmentResult.error) throw assignmentResult.error;
+
+        if (coachRelationResult.data?.coach) {
+          const coachData = coachRelationResult.data.coach;
+          // Handle cases where Supabase returns a single-element array for a one-to-one relation
+          setCoach((Array.isArray(coachData) ? coachData[0] : coachData) as Profile);
+        }
+
+        if (assignmentResult.data) {
+          // Gelen veriyi `Assignment` tipine uygun şekilde state'e ata
+          const data = assignmentResult.data as any;
+          setAssignment({
+            training_program: Array.isArray(data.training_program) ? data.training_program[0] : data.training_program,
+            diet_plan: Array.isArray(data.diet_plan) ? data.diet_plan[0] : data.diet_plan,
+          });
+        }
+      } catch (err: any) {
+        console.error("Failed to load client dashboard data:", err);
+        toast.error("Dashboard could not be loaded. Please try again.");
+      } finally {
+        setLoading(false);
       }
-
-      const { data: assignmentData } = await supabase
-        .from('client_assignments')
-        .select(`
-          training_program:training_programs(id, name, description),
-          diet_plan:diet_plans(id, name, description)
-        `)
-        .eq('client_id', typedProfile.id)
-        .maybeSingle();
-
-      console.log('ClientDashboard: Program atama sorgusu sonucu (assignmentData):', assignmentData);
-      
-      if (assignmentData) {
-        const data = assignmentData as any;
-        setAssignment({
-          training_program: Array.isArray(data.training_program) ? data.training_program[0] : data.training_program,
-          diet_plan: Array.isArray(data.diet_plan) ? data.diet_plan[0] : data.diet_plan
-        });
-        console.log('ClientDashboard: Atama bilgisi state\'e kaydedildi.');
-      } else {
-        console.warn('ClientDashboard: Bu danışan için atanmış program bulunamadı.');
-      }
-
-      setLoading(false);
-      console.log('ClientDashboard: Veri yükleme tamamlandı.');
     }
 
     loadData();
@@ -136,32 +120,43 @@ export default function ClientDashboardPage() {
   }
 
   async function handleTerminateCollaboration() {
-    if (!profile || !coach) return;
-
-    setIsTerminating(true);
-
-    const { error } = await supabase
-      .from('client_coach_relations')
-      .update({ status: 'inactive' })
-      .eq('client_id', profile.id)
-      .eq('coach_id', coach.id)
-      .eq('status', 'active');
-
-    if (error) {
-      console.error('Error terminating collaboration:', error);
-      toast.error('Failed to end collaboration. Please try again.');
-      setIsTerminating(false);
-    } else {
-      toast.success("Collaboration with your coach has been ended.");
-      // Arayüzü güncellemek için coach state'ini null yapıyoruz.
-      // Bu, "Your Coach" kartının kaybolmasını sağlar.
-      setCoach(null);
-      // Sayfayı yeniden yüklemek de bir seçenek olabilirdi: router.refresh();
+    console.log('handleTerminateCollaboration: İşlem başlatıldı.');
+    if (!profile || !coach) {
+      console.error('handleTerminateCollaboration: Profil veya koç bilgisi eksik. İşlem durduruldu.', { profile, coach });
+      return;
     }
-    // Hata durumunda butonun tekrar aktif olması için false'a çekiyoruz.
-    // Başarılı durumda zaten kart kaybolacağı için state'in bir önemi kalmıyor.
-    if (!error) return;
-    setIsTerminating(false);
+
+    console.log('handleTerminateCollaboration: Koç ile ilişki sonlandırılıyor. Client ID:', profile.id, 'Coach ID:', coach.id);
+    try {
+      setIsTerminating(true);
+      // Call the secure RPC function instead of a direct update
+      const { data, error } = await supabase.rpc('terminate_collaboration_as_client', {
+        requesting_client_id: profile.id,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      console.log('handleTerminateCollaboration: RPC function result:', data);
+
+      if (data === 'SUCCESS') {
+        console.log('handleTerminateCollaboration: İlişki başarıyla "inactive" olarak güncellendi.');
+        toast.success("Collaboration with your coach has been ended.");
+      } else {
+        // This case handles 'NOT_FOUND' or any other unexpected return value
+        console.warn('handleTerminateCollaboration: RPC function reported no active relation was found.');
+        toast.info("No active collaboration was found to end.");
+      }
+
+      setCoach(null); // Her durumda koçu arayüzden kaldır
+    } catch (error: any) {
+      console.error('handleTerminateCollaboration: "catch" bloğunda bir hata yakalandı:', error);
+      toast.error(error.message || 'Failed to end collaboration. Please try again.');
+    } finally {
+      console.log('handleTerminateCollaboration: İşlem tamamlandı, `isTerminating` false olarak ayarlanıyor.');
+      setIsTerminating(false);
+    }
   }
 
   if (loading) {
