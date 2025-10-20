@@ -259,7 +259,7 @@ export default function CreateProgramPage() {
   }
   
   return (
-    <div className="min-h-screen bg-slate-50 py-12 px-4">
+    <div className="min-h-screen bg-background py-12 px-4">
       <div className="max-w-4xl mx-auto">
         <Link href="/dashboard/coach">
           <Button variant="ghost" className="mb-6">
@@ -270,8 +270,8 @@ export default function CreateProgramPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Create New Program</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-card-foreground">Create New Program</CardTitle>
+            <CardDescription className="text-muted-foreground">
               Build a training program or diet plan to assign to your clients
             </CardDescription>
           </CardHeader>
@@ -284,7 +284,7 @@ export default function CreateProgramPage() {
               
               <TabsContent value="training">
                 <form onSubmit={handleCreateTrainingProgram} className="space-y-6 pt-6">
-                  {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+                  {error && <Alert variant="destructive"><AlertDescription className="text-destructive-foreground">{error}</AlertDescription></Alert>}
                   <div className="space-y-2">
                     <Label htmlFor="trainingName">Program Name</Label>
                     <Input id="trainingName" value={trainingProgramName} onChange={(e) => setTrainingProgramName(e.target.value)} placeholder="e.g., Beginner Full Body" required disabled={loading}/>
@@ -337,7 +337,7 @@ export default function CreateProgramPage() {
 
               <TabsContent value="diet">
                 <form onSubmit={handleCreateDietPlan} className="space-y-6 pt-6">
-                  {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+                  {error && <Alert variant="destructive"><AlertDescription className="text-destructive-foreground">{error}</AlertDescription></Alert>}
                   <div className="space-y-2">
                     <Label htmlFor="dietName">Diet Plan Name</Label>
                     <Input id="dietName" value={dietPlanName} onChange={(e) => setDietPlanName(e.target.value)} placeholder="e.g., 2000 Calorie Meal Plan" required disabled={loading}/>

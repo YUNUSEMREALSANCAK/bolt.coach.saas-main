@@ -37,13 +37,13 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted/20 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 flex flex-col items-center">
-          <div className="w-12 h-12 bg-slate-900 rounded-xl flex items-center justify-center mb-2">
-            <Dumbbell className="h-6 w-6 text-white" />
+          <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center mb-2">
+            <Dumbbell className="h-6 w-6 text-primary-foreground" />
           </div>
-          <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
+          <CardTitle className="text-2xl font-bold text-card-foreground">Welcome back</CardTitle>
           <CardDescription>Sign in to your FitTrack account</CardDescription>
         </CardHeader>
         <form onSubmit={handleSignIn}>

@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { ThemeToggle } from '@/components/theme-toggle';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -227,8 +228,8 @@ export default function ClientDetailsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-slate-600">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-muted-foreground">Loading...</div>
       </div>
     );
   }
@@ -236,7 +237,7 @@ export default function ClientDetailsPage() {
   if (!client) return null;
 
   return (
-    <div className="min-h-screen bg-slate-50 py-12 px-4">
+    <div className="min-h-screen bg-background py-12 px-4">
       <div className="max-w-4xl mx-auto">
         <Link href="/dashboard/coach">
           <Button variant="ghost" className="mb-6">
@@ -250,13 +251,13 @@ export default function ClientDetailsPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <Avatar className="h-16 w-16">
-                  <AvatarFallback className="bg-slate-900 text-white text-xl">
+                  <AvatarFallback className="bg-primary text-primary-foreground text-xl">
                     {client.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <CardTitle className="text-2xl">{client.full_name}</CardTitle>
-                  <CardDescription>{client.email}</CardDescription>
+                  <CardTitle className="text-2xl text-card-foreground">{client.full_name}</CardTitle>
+                  <CardDescription className="text-muted-foreground">{client.email}</CardDescription>
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row gap-2">
@@ -295,8 +296,8 @@ export default function ClientDetailsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Assign Programs</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-card-foreground">Assign Programs</CardTitle>
+            <CardDescription className="text-muted-foreground">
               Select training and diet programs to assign to this client
             </CardDescription>
           </CardHeader>
@@ -307,10 +308,10 @@ export default function ClientDetailsPage() {
             <div className="space-y-2">
               <Label>Training Program</Label>
               {trainingPrograms.length === 0 ? (
-                <div className="flex items-center justify-between p-4 border rounded-lg bg-slate-50">
+                <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/50">
                   <div className="flex items-center space-x-3">
-                    <Calendar className="h-5 w-5 text-slate-400" />
-                    <span className="text-sm text-slate-600">No training programs created yet</span>
+                    <Calendar className="h-5 w-5 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">No training programs created yet</span>
                   </div>
                   <Link href="/dashboard/coach/programs/create">
                     <Button size="sm">Create Program</Button>
@@ -337,10 +338,10 @@ export default function ClientDetailsPage() {
             <div className="space-y-2">
               <Label>Diet Plan</Label>
               {dietPlans.length === 0 ? (
-                <div className="flex items-center justify-between p-4 border rounded-lg bg-slate-50">
+                <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/50">
                   <div className="flex items-center space-x-3">
-                    <User className="h-5 w-5 text-slate-400" />
-                    <span className="text-sm text-slate-600">No diet plans created yet</span>
+                    <User className="h-5 w-5 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">No diet plans created yet</span>
                   </div>
                   <Link href="/dashboard/coach/programs/create">
                     <Button size="sm">Create Plan</Button>

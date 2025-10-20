@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ThemeToggle } from '@/components/theme-toggle';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -161,8 +162,8 @@ export default function ClientDashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-slate-600">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-muted-foreground">Loading...</div>
       </div>
     );
   }
@@ -170,19 +171,20 @@ export default function ClientDashboardPage() {
   if (!profile) return null;
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-background">
       {/* ... Nav bar olduğu gibi kalacak ... */}
-      <nav className="border-b bg-white">
+      <nav className="border-b bg-card">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link href="/dashboard/client" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center">
-                <Dumbbell className="h-4 w-4 text-white" />
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                <Dumbbell className="h-4 w-4 text-primary-foreground" />
               </div>
-              <span className="text-lg font-bold text-slate-900">FitTrack</span>
+              <span className="text-lg font-bold text-foreground">FitTrack</span>
             </Link>
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-slate-600">{profile.full_name}</span>
+              <ThemeToggle />
+              <span className="text-sm text-muted-foreground">{profile.full_name}</span>
               <Button variant="ghost" size="sm" onClick={handleSignOut}>
                 <LogOut className="h-4 w-4 mr-2" />
                 Sign out
@@ -194,19 +196,19 @@ export default function ClientDashboardPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">My Dashboard</h1>
-          <p className="text-slate-600">Track your progress and follow your programs</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">My Dashboard</h1>
+          <p className="text-muted-foreground">Track your progress and follow your programs</p>
         </div>
 
         {coach && (
           <Card className="mb-8">
-            <CardHeader><CardTitle className="text-lg">Your Coach</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-lg text-card-foreground">Your Coach</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center space-x-3">
-                <Avatar><AvatarFallback className="bg-slate-900 text-white">{coach.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}</AvatarFallback></Avatar>
+                <Avatar><AvatarFallback className="bg-primary text-primary-foreground">{coach.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}</AvatarFallback></Avatar>
                 <div>
-                  <div className="font-medium">{coach.full_name}</div>
-                  <div className="text-sm text-slate-600">{coach.email}</div>
+                  <div className="font-medium text-card-foreground">{coach.full_name}</div>
+                  <div className="text-sm text-muted-foreground">{coach.email}</div>
                 </div>
               </div>
               <div className="flex flex-col items-end sm:flex-row sm:justify-end gap-2">
@@ -262,9 +264,9 @@ export default function ClientDashboardPage() {
             ) : (
               <Card>
                 <CardContent className="py-16 text-center">
-                  <Calendar className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-slate-900 mb-2">No training program assigned</h3>
-                  <p className="text-slate-600">Your coach will assign you a program soon</p>
+                  <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">No training program assigned</h3>
+                  <p className="text-muted-foreground">Your coach will assign you a program soon</p>
                 </CardContent>
               </Card>
             )}
@@ -289,9 +291,9 @@ export default function ClientDashboardPage() {
             ) : (
               <Card>
                 <CardContent className="py-16 text-center">
-                  <User className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-slate-900 mb-2">No diet plan assigned</h3>
-                  <p className="text-slate-600">Your coach will assign you a diet plan soon</p>
+                  <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">No diet plan assigned</h3>
+                  <p className="text-muted-foreground">Your coach will assign you a diet plan soon</p>
                 </CardContent>
               </Card>
             )}

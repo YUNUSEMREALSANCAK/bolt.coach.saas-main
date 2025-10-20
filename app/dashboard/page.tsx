@@ -39,8 +39,8 @@ export default function DashboardRedirectPage() {
 
   // Yönlendirme gerçekleşirken bir yükleme ekranı göster
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
-      <div className="text-slate-600">Redirecting...</div>
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="text-muted-foreground">Redirecting...</div>
     </div>
   );
 }

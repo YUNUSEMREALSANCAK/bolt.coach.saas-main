@@ -70,7 +70,7 @@ export default function AddClientPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 py-12 px-4">
+    <div className="min-h-screen bg-background py-12 px-4">
       <div className="max-w-2xl mx-auto">
         <Link href="/dashboard/coach">
           <Button variant="ghost" className="mb-6">
@@ -80,8 +80,8 @@ export default function AddClientPage() {
         </Link>
         <Card>
           <CardHeader>
-            <CardTitle>Add a New Client</CardTitle>
-            <CardDescription>Enter the email address of the client you want to add to your list.</CardDescription>
+            <CardTitle className="text-card-foreground">Add a New Client</CardTitle>
+            <CardDescription className="text-muted-foreground">Enter the email address of the client you want to add to your list.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">

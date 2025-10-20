@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { Dumbbell, Users, Calendar, MessageSquare, Plus, LogOut, TrendingUp } from 'lucide-react';
 
 // Interface Tanımları
@@ -118,8 +119,8 @@ export default function CoachDashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-slate-600">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-muted-foreground">Loading...</div>
       </div>
     );
   }
@@ -127,18 +128,19 @@ export default function CoachDashboardPage() {
   if (!profile) return null;
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <nav className="border-b bg-white">
+    <div className="min-h-screen bg-background">
+      <nav className="border-b bg-card">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link href="/dashboard/coach" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center">
-                <Dumbbell className="h-4 w-4 text-white" />
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                <Dumbbell className="h-4 w-4 text-primary-foreground" />
               </div>
-              <span className="text-lg font-bold text-slate-900">FitTrack</span>
+              <span className="text-lg font-bold text-foreground">FitTrack</span>
             </Link>
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-slate-600">{profile.full_name}</span>
+              <ThemeToggle />
+              <span className="text-sm text-muted-foreground">{profile.full_name}</span>
               <Button variant="ghost" size="sm" onClick={handleSignOut}>
                 <LogOut className="h-4 w-4 mr-2" />
                 Sign out
@@ -150,15 +152,15 @@ export default function CoachDashboardPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Coach Dashboard</h1>
-          <p className="text-slate-600">Manage your clients and programs</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Coach Dashboard</h1>
+          <p className="text-muted-foreground">Manage your clients and programs</p>
         </div>
 
         <div className="grid gap-6 md:grid-cols-4 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
-              <Users className="h-4 w-4 text-slate-600" />
+              <CardTitle className="text-sm font-medium text-card-foreground">Total Clients</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{clients.length}</div>
@@ -166,29 +168,29 @@ export default function CoachDashboardPage() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Programs</CardTitle>
-              <Calendar className="h-4 w-4 text-slate-600" />
+              <CardTitle className="text-sm font-medium text-card-foreground">Active Programs</CardTitle>
+              <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
+              <div className="text-2xl font-bold text-card-foreground">0</div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Avg Completion</CardTitle>
-              <TrendingUp className="h-4 w-4 text-slate-600" />
+              <CardTitle className="text-sm font-medium text-card-foreground">Avg Completion</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0%</div>
+              <div className="text-2xl font-bold text-card-foreground">0%</div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Messages</CardTitle>
-              <MessageSquare className="h-4 w-4 text-slate-600" />
+              <CardTitle className="text-sm font-medium text-card-foreground">Messages</CardTitle>
+              <MessageSquare className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
+              <div className="text-2xl font-bold text-card-foreground">0</div>
             </CardContent>
           </Card>
         </div>
@@ -202,7 +204,7 @@ export default function CoachDashboardPage() {
 
           <TabsContent value="clients" className="space-y-4">
             <div className="flex justify-between items-center">
-              <h2 className="text-xl font-bold text-slate-900">Your Clients</h2>
+              <h2 className="text-xl font-bold text-foreground">Your Clients</h2>
               <Link href="/dashboard/coach/clients/add">
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />
@@ -214,9 +216,9 @@ export default function CoachDashboardPage() {
             {clients.length === 0 ? (
               <Card>
                 <CardContent className="py-16 text-center">
-                  <Users className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-slate-900 mb-2">No clients yet</h3>
-                  <p className="text-slate-600 mb-6">Start building your client base</p>
+                  <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">No clients yet</h3>
+                  <p className="text-muted-foreground mb-6">Start building your client base</p>
                   <Link href="/dashboard/coach/clients/add">
                     <Button>Add your first client</Button>
                   </Link>
@@ -229,13 +231,13 @@ export default function CoachDashboardPage() {
                     <CardHeader>
                       <div className="flex items-center space-x-3">
                         <Avatar>
-                          <AvatarFallback className="bg-slate-900 text-white">
+                          <AvatarFallback className="bg-primary text-primary-foreground">
                             {relation.client.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <CardTitle className="text-lg">{relation.client.full_name}</CardTitle>
-                          <CardDescription>{relation.client.email}</CardDescription>
+                          <CardTitle className="text-lg text-card-foreground">{relation.client.full_name}</CardTitle>
+                          <CardDescription className="text-muted-foreground">{relation.client.email}</CardDescription>
                         </div>
                       </div>
                     </CardHeader>
@@ -261,7 +263,7 @@ export default function CoachDashboardPage() {
 
           <TabsContent value="programs" className="space-y-4">
             <div className="flex justify-between items-center">
-              <h2 className="text-xl font-bold text-slate-900">Training & Diet Programs</h2>
+              <h2 className="text-xl font-bold text-foreground">Training & Diet Programs</h2>
               <Link href="/dashboard/coach/programs/create">
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />
@@ -273,9 +275,9 @@ export default function CoachDashboardPage() {
             {trainingPrograms.length === 0 && dietPlans.length === 0 ? (
               <Card>
                 <CardContent className="py-16 text-center">
-                  <Calendar className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-slate-900 mb-2">No programs yet</h3>
-                  <p className="text-slate-600 mb-6">Create your first training or diet program</p>
+                  <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">No programs yet</h3>
+                  <p className="text-muted-foreground mb-6">Create your first training or diet program</p>
                   <Link href="/dashboard/coach/programs/create">
                     <Button>Create program</Button>
                   </Link>
@@ -284,7 +286,7 @@ export default function CoachDashboardPage() {
             ) : (
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-3">Training Programs</h3>
+                  <h3 className="text-lg font-semibold text-foreground mb-3">Training Programs</h3>
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {trainingPrograms.map((program) => (
                       <Card key={program.id}>
@@ -303,7 +305,7 @@ export default function CoachDashboardPage() {
                   {trainingPrograms.length === 0 && <p className="text-sm text-slate-500">No training programs created yet.</p>}
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-3">Diet Plans</h3>
+                  <h3 className="text-lg font-semibold text-foreground mb-3">Diet Plans</h3>
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {dietPlans.map((plan) => (
                       <Card key={plan.id}>
@@ -326,12 +328,12 @@ export default function CoachDashboardPage() {
           </TabsContent>
 
           <TabsContent value="messages" className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900">Messages</h2>
+            <h2 className="text-xl font-bold text-foreground">Messages</h2>
             <Card>
               <CardContent className="py-16 text-center">
-                <MessageSquare className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-slate-900 mb-2">No messages yet</h3>
-                <p className="text-slate-600">Your conversations with clients will appear here</p>
+                <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-foreground mb-2">No messages yet</h3>
+                <p className="text-muted-foreground">Your conversations with clients will appear here</p>
               </CardContent>
             </Card>
           </TabsContent>
