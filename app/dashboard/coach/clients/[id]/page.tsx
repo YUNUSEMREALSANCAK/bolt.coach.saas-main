@@ -8,10 +8,22 @@ import { supabase } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowLeft, MessageSquare, Calendar, User } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Calendar, User, UserX } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface Profile {
   id: string;
@@ -53,6 +65,7 @@ export default function ClientDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [isTerminating, setIsTerminating] = useState(false);
   const [success, setSuccess] = useState('');
 
   useEffect(() => {
@@ -182,6 +195,36 @@ export default function ClientDetailsPage() {
     }, 3000);
   }
 
+  async function handleTerminateCollaboration() {
+    setIsTerminating(true);
+    const { profile: coachProfile } = await getCurrentProfile();
+    if (!coachProfile) {
+      toast.error("Authentication error. Please sign in again.");
+      setIsTerminating(false);
+      return;
+    }
+
+    // İlişki durumunu 'inactive' olarak güncelle
+    const { error: updateError } = await supabase
+      .from('client_coach_relations')
+      .update({ status: 'inactive' })
+      .eq('coach_id', coachProfile.id)
+      .eq('client_id', clientId)
+      .eq('status', 'active');
+
+    if (updateError) {
+      console.error('Error terminating collaboration:', updateError);
+      toast.error('Failed to end collaboration. Please try again.');
+      setIsTerminating(false);
+    } else {
+      toast.success('Collaboration has been successfully ended.');
+      // Koçu danışanlar listesine geri yönlendir
+      router.push('/dashboard/coach');
+    }
+    // isTerminating state'ini false yapmaya gerek yok çünkü sayfa değişecek.
+    // Ama hata durumunda butonun tekrar aktif olması için false'a çekiyoruz.
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -216,12 +259,36 @@ export default function ClientDetailsPage() {
                   <CardDescription>{client.email}</CardDescription>
                 </div>
               </div>
-              <Link href={`/dashboard/coach/messages/${client.id}`}>
-                <Button>
-                  <MessageSquare className="h-4 w-4 mr-2" />
-                  Message
-                </Button>
-              </Link>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Link href={`/dashboard/coach/messages/${client.id}`}>
+                  <Button variant="outline" className="w-full">
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Message
+                  </Button>
+                </Link>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" className="w-full">
+                      <UserX className="h-4 w-4 mr-2" />
+                      End Collaboration
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action will terminate your professional relationship with {client.full_name}. They will no longer see you as their coach. This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel disabled={isTerminating}>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleTerminateCollaboration} disabled={isTerminating} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        {isTerminating ? 'Terminating...' : 'Yes, Terminate'}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
             </div>
           </CardHeader>
         </Card>

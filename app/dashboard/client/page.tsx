@@ -9,8 +9,19 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Dumbbell, User, Calendar, MessageSquare, LogOut, CheckCircle2, Circle } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Dumbbell, User, Calendar, MessageSquare, LogOut, UserX } from 'lucide-react';
+import { toast } from 'sonner';
 
 // --- Güncellenmiş Interface Tanımları ---
 interface Profile {
@@ -40,6 +51,7 @@ export default function ClientDashboardPage() {
   const [coach, setCoach] = useState<Profile | null>(null);
   const [assignment, setAssignment] = useState<Assignment | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isTerminating, setIsTerminating] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -123,6 +135,35 @@ export default function ClientDashboardPage() {
     router.push('/');
   }
 
+  async function handleTerminateCollaboration() {
+    if (!profile || !coach) return;
+
+    setIsTerminating(true);
+
+    const { error } = await supabase
+      .from('client_coach_relations')
+      .update({ status: 'inactive' })
+      .eq('client_id', profile.id)
+      .eq('coach_id', coach.id)
+      .eq('status', 'active');
+
+    if (error) {
+      console.error('Error terminating collaboration:', error);
+      toast.error('Failed to end collaboration. Please try again.');
+      setIsTerminating(false);
+    } else {
+      toast.success("Collaboration with your coach has been ended.");
+      // Arayüzü güncellemek için coach state'ini null yapıyoruz.
+      // Bu, "Your Coach" kartının kaybolmasını sağlar.
+      setCoach(null);
+      // Sayfayı yeniden yüklemek de bir seçenek olabilirdi: router.refresh();
+    }
+    // Hata durumunda butonun tekrar aktif olması için false'a çekiyoruz.
+    // Başarılı durumda zaten kart kaybolacağı için state'in bir önemi kalmıyor.
+    if (!error) return;
+    setIsTerminating(false);
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -165,18 +206,40 @@ export default function ClientDashboardPage() {
         {coach && (
           <Card className="mb-8">
             <CardHeader><CardTitle className="text-lg">Your Coach</CardTitle></CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <Avatar><AvatarFallback className="bg-slate-900 text-white">{coach.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}</AvatarFallback></Avatar>
-                  <div>
-                    <div className="font-medium">{coach.full_name}</div>
-                    <div className="text-sm text-slate-600">{coach.email}</div>
-                  </div>
+            <CardContent className="space-y-4">
+              <div className="flex items-center space-x-3">
+                <Avatar><AvatarFallback className="bg-slate-900 text-white">{coach.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}</AvatarFallback></Avatar>
+                <div>
+                  <div className="font-medium">{coach.full_name}</div>
+                  <div className="text-sm text-slate-600">{coach.email}</div>
                 </div>
+              </div>
+              <div className="flex flex-col items-end sm:flex-row sm:justify-end gap-2">
                 <Link href={`/dashboard/client/messages/${coach.id}`}>
                   <Button variant="outline"><MessageSquare className="h-4 w-4 mr-2" />Message</Button>
                 </Link>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive">
+                      <UserX className="h-4 w-4 mr-2" />
+                      End Collaboration
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action will terminate your professional relationship with {coach.full_name}. You will no longer have access to the programs they assigned. This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel disabled={isTerminating}>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleTerminateCollaboration} disabled={isTerminating} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        {isTerminating ? 'Terminating...' : 'Yes, Terminate'}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </CardContent>
           </Card>
