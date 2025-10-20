@@ -6,76 +6,67 @@ import Link from 'next/link';
 import { getCurrentProfile } from '@/lib/auth';
 import { supabase } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ArrowLeft } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function AddClientPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [isAdding, setIsAdding] = useState(false);
 
-  async function handleAddClient(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    setSuccess('');
-
-    const { profile } = await getCurrentProfile();
-
-    if (!profile || profile.user_type !== 'coach') {
-      setError('You must be a coach to add clients');
-      setLoading(false);
+  async function handleAddClient() {
+    if (!email) {
+      toast.error('Please enter a client email.');
       return;
     }
 
-    // DÜZELTME: `.from('profiles').select()` yerine `.rpc()` kullan
-    const { data: clientProfileData, error: clientError } = await supabase
-      .rpc('search_client_by_email', {
-        client_email: email.toLowerCase()
-      });
-
-    if (clientError || !clientProfileData || clientProfileData.length === 0) {
-      setError('Client not found with this email, or they are not registered as a client.');
-      setLoading(false);
-      return;
-    }
-    
-    const clientProfile = clientProfileData[0];
-
-    // Bu kontrol RPC içinde yapılıyor ama burada da olması iyidir.
-    if (clientProfile.user_type !== 'client') {
-      setError('This user is not registered as a client');
-      setLoading(false);
-      return;
-    }
-
-    const { error: relationError } = await supabase
-      .from('client_coach_relations')
-      .insert({
-        coach_id: profile.id,
-        client_id: clientProfile.id,
-        status: 'active',
-      });
-
-    if (relationError) {
-      if (relationError.code === '23505') { // Unique constraint violation
-        setError('This client is already on your list.');
-      } else {
-        setError(`Failed to add client: ${relationError.message}`);
+    setIsAdding(true);
+    try {
+      const { profile: coachProfile } = await getCurrentProfile();
+      if (!coachProfile) {
+        throw new Error('Authentication error. Please sign in again.');
       }
-      setLoading(false);
-      return;
-    }
 
-    setSuccess(`Client "${clientProfile.full_name}" added successfully! Redirecting...`);
-    setTimeout(() => {
-      router.push('/dashboard/coach');
-    }, 2000);
+      const { data, error } = await supabase.rpc('add_or_reactivate_client', {
+        coach_id_param: coachProfile.id,
+        client_email_param: email.trim(),
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // Handle the response from the RPC function
+      switch (data) {
+        case 'CLIENT_NOT_FOUND':
+          toast.error('No user found with this email.');
+          break;
+        case 'USER_NOT_A_CLIENT':
+          toast.error('This user is not registered as a client.');
+          break;
+        case 'RELATION_ALREADY_ACTIVE':
+          toast.error('This client is already on your active list.');
+          break;
+        case 'RELATION_REACTIVATED':
+          toast.success('Collaboration re-established successfully!');
+          router.push('/dashboard/coach');
+          router.refresh();
+          break;
+        case 'RELATION_CREATED':
+          toast.success('Client added successfully!');
+          router.push('/dashboard/coach');
+          router.refresh();
+          break;
+      }
+    } catch (error: any) {
+      console.error("Error adding or reactivating client:", error);
+      toast.error(error.message || "An unexpected error occurred. Please try again.");
+    } finally {
+      setIsAdding(false);
+    }
   }
 
   return (
@@ -87,42 +78,19 @@ export default function AddClientPage() {
             Back to dashboard
           </Button>
         </Link>
-
         <Card>
           <CardHeader>
-            <CardTitle>Add New Client</CardTitle>
-            <CardDescription>
-              Enter the email address of your client. They must already have a FitTrack account.
-            </CardDescription>
+            <CardTitle>Add a New Client</CardTitle>
+            <CardDescription>Enter the email address of the client you want to add to your list.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <form onSubmit={handleAddClient} className="space-y-4">
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-              {success && (
-                <Alert className="bg-green-50 text-green-900 border-green-200">
-                  <AlertDescription>{success}</AlertDescription>
-                </Alert>
-              )}
-              <div className="space-y-2">
-                <Label htmlFor="email">Client Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="client@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  disabled={loading}
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? 'Searching...' : 'Add Client'}
-              </Button>
-            </form>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Client's Email</Label>
+              <Input id="email" type="email" placeholder="client@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+            </div>
+            <Button onClick={handleAddClient} disabled={isAdding} className="w-full">
+              {isAdding ? 'Adding...' : 'Add Client'}
+            </Button>
           </CardContent>
         </Card>
       </div>
