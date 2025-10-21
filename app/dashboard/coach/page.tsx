@@ -248,7 +248,7 @@ export default function CoachDashboardPage() {
                             View Details
                           </Button>
                         </Link>
-                        <Link href={`/dashboard/coach/messages/${relation.client_id}`}>
+                        <Link href={`/dashboard/messages/${relation.client_id}`}>
                           <Button variant="outline" size="sm">
                             <MessageSquare className="h-4 w-4" />
                           </Button>

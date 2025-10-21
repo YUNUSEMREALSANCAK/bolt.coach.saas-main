@@ -212,7 +212,7 @@ export default function ClientDashboardPage() {
                 </div>
               </div>
               <div className="flex flex-col items-end sm:flex-row sm:justify-end gap-2">
-                <Link href={`/dashboard/client/messages/${coach.id}`}>
+                <Link href={`/dashboard/messages/${coach.id}`}>
                   <Button variant="outline"><MessageSquare className="h-4 w-4 mr-2" />Message</Button>
                 </Link>
                 <AlertDialog>
