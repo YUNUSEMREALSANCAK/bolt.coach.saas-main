@@ -35,6 +35,8 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -70,13 +72,16 @@ export default function ChatPage() {
       const { data: messagesData, error: messagesError } = await supabase
         .from('messages')
         .select('*')
-        .or(`(sender_id.eq.${profile.id},receiver_id.eq.${otherUserId}),(sender_id.eq.${otherUserId},receiver_id.eq.${profile.id})`)
-        .order('created_at', { ascending: true });
+        .in('sender_id', [profile.id, otherUserId])
+        .in('receiver_id', [profile.id, otherUserId])
+        .order('created_at', { ascending: false })
+        .limit(15);
       
       if (messagesError) {
         toast.error("Failed to load messages.");
       } else {
         setMessages(messagesData as Message[]);
+        setHasMoreMessages(messagesData.length === 15);
       }
 
       setLoading(false);
@@ -110,6 +115,34 @@ export default function ChatPage() {
   }, [currentUser, otherUserId]);
 
 
+  async function loadMoreMessages() {
+    if (!currentUser || !otherUser || loadingMore || !hasMoreMessages) return;
+
+    setLoadingMore(true);
+    const oldestMessage = messages[messages.length - 1];
+
+    const { data: olderMessagesData, error: olderMessagesError } = await supabase
+      .from('messages')
+      .select('*')
+      .in('sender_id', [currentUser.id, otherUser.id])
+      .in('receiver_id', [currentUser.id, otherUser.id])
+      .order('created_at', { ascending: false })
+      .limit(15)
+      .lt('created_at', oldestMessage.created_at);
+
+    if (olderMessagesError) {
+      toast.error("Failed to load more messages.");
+    } else {
+      const olderMessages = olderMessagesData as Message[];
+      if (olderMessages.length < 15) {
+        setHasMoreMessages(false);
+      }
+      setMessages(prev => [...prev, ...olderMessages]);
+    }
+
+    setLoadingMore(false);
+  }
+
   async function handleSendMessage(e: React.FormEvent) {
     e.preventDefault();
     if (newMessage.trim() === '' || !currentUser || !otherUser) return;
@@ -119,9 +152,9 @@ export default function ChatPage() {
       receiver_id: otherUser.id,
       content: newMessage.trim(),
     };
-    
+
     setNewMessage('');
-    
+
     // Optimistic UI update
     const optimisticMessage: Message = { ...messageToSend, id: Date.now(), created_at: new Date().toISOString() };
     setMessages(prev => [...prev, optimisticMessage]);
@@ -155,6 +188,19 @@ export default function ChatPage() {
       </header>
 
       <main className="flex-1 overflow-y-auto p-4 space-y-4">
+        {hasMoreMessages && messages.length > 0 && (
+          <div className="flex justify-center">
+            <Button
+              variant="outline"
+              onClick={loadMoreMessages}
+              disabled={loadingMore}
+              className="mb-4"
+            >
+              {loadingMore ? 'Loading...' : 'Load More Messages'}
+            </Button>
+          </div>
+        )}
+
         {messages.map((msg) => (
           <div key={msg.id} className={`flex ${msg.sender_id === currentUser.id ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-xs md:max-w-md p-3 rounded-2xl ${msg.sender_id === currentUser.id ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none'}`}>
